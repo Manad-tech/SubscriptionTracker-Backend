@@ -1,10 +1,13 @@
-import mongoose from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
+import { ref } from "process";
 
 const subscriptionSchema = new mongoose.Schema(
   {
     userId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true
+      
     },
     name: {
       type: String,
