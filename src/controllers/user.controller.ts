@@ -7,7 +7,7 @@ export const createUser = async (req: Request , res: Response) => {
 
     if (!name || !email || !password || !role) {
       return res.status(400).json({
-        message: "Name, email , password , role is required",
+        message: "All required fields must be provided",
       });
     }
 
@@ -33,7 +33,6 @@ export const createUser = async (req: Request , res: Response) => {
 export const readAllUsers = async (req: Request , res: Response) => {
   try {
     const users = await User.find()
-    console.log(users)
 
     return res.status(200).json({
       users,
