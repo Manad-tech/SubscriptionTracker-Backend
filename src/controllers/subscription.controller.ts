@@ -4,30 +4,22 @@ import mongoose from "mongoose";
 
 export const createSubscription = async (req: Request, res: Response) => {
   try {
-    const {
-      userId,
-      name,
-      amount,
-      billingCycle,
-      category,
-      renewalDate,
-      isShared,
-    } = req.body;
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-    if (
-      !userId ||
-      !name ||
-      !amount ||
-      !billingCycle ||
-      !category ||
-      !renewalDate
-    ) {
+    const userId = req.user._id;
+
+    const { name, amount, billingCycle, category, renewalDate, isShared } =
+      req.body;
+
+    if (!name || !amount || !billingCycle || !category || !renewalDate) {
       return res
         .status(400)
         .json({ message: "All required fields must be provided" });
     }
 
-    const newSubscription = new Subscription({
+    const newSubscription = await Subscription.create({
       userId,
       name,
       amount,
@@ -37,9 +29,7 @@ export const createSubscription = async (req: Request, res: Response) => {
       isShared,
     });
 
-    const savedSubscription = await newSubscription.save();
-
-    return res.status(201).json(savedSubscription);
+    return res.status(201).json(newSubscription);
   } catch (error: any) {
     return res
       .status(500)
@@ -49,24 +39,16 @@ export const createSubscription = async (req: Request, res: Response) => {
 
 export const readAllSubscriptions = async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const filter: any =
+      req.user.role === "Admin" ? {} : { userId: req.user?._id };
 
-    
-    const mockUser = {
-      _id: new mongoose.Types.ObjectId("69a08960cd4c6103e1587d0b"),
-      role: "User",
-    };
-    
-    let filter = {};
-    
-    if (mockUser.role === "Admin") {
-      filter = {};
-    }
-    else {
-      filter = { userId: mockUser._id}
-    }
-    
     const subscriptions = await Subscription.find(filter);
+
+    console.log("Role:", req.user?.role);
+    console.log("Filter:", filter);
 
     return res.status(200).json({
       subscriptions,
@@ -173,5 +155,103 @@ export const readUsersSubscription = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getCategoryStats = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const matchStage =
+      req.user.role === "Admin" ? {} : { userId: req.user._id };
+
+    const stats = await Subscription.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: "$category",
+          total: { $sum: "$amount" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          category: "$_id",
+          total: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).json(stats);
+  } catch (error: any) {
+    return res.status(500).json({
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};
+
+export const getTotalSpending = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const matchStage =
+      req.user.role === "Admin"
+        ? {}
+        : { userId: req.user._id };
+
+    const result = await Subscription.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    const total = result[0]?.total || 0;
+
+    return res.status(200).json({ total });
+  } catch (error: any) {
+    return res.status(500).json({
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};
+
+export const getUpcomingRenewals = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const today = new Date();
+    const next7Days = new Date();
+    next7Days.setDate(today.getDate() + 30);
+
+    const matchStage =
+      req.user.role === "Admin"
+        ? { renewalDate: { $gte: today, $lte: next7Days } }
+        : {
+            userId: req.user._id,
+            renewalDate: { $gte: today, $lte: next7Days },
+          };
+
+    const renewals = await Subscription.find(matchStage).sort({
+      renewalDate: 1,
+    });
+
+    return res.status(200).json(renewals);
+  } catch (error: any) {
+    return res.status(500).json({
+      message: "Server Error",
+      error: error.message,
+    });
   }
 };

@@ -1,7 +1,13 @@
-import { Hash } from "crypto";
-import mongoose from "mongoose";
+import mongoose, { Document } from "mongoose";
 
-const userSchema = new mongoose.Schema(
+export interface IUser extends Document {
+  name: string;
+  email: string;
+  password: string;
+  role: "Admin" | "User";
+}
+
+const userSchema = new mongoose.Schema<IUser>(
   {
     name: {
       type: String,
@@ -18,19 +24,18 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      unique: true,
     },
     role: {
       type: String,
-      enum: ['Admin' , 'User'],
+      enum: ["Admin", "User"],
       required: true,
-      default: 'User',
-    }
+      default: "User",
+    },
   },
   {
-    timestamps: true
-  }
-)
+    timestamps: true,
+  },
+);
 
-const User: any = mongoose.model('User', userSchema)
-export default User
+const User: any = mongoose.model<IUser>("User", userSchema);
+export default User;

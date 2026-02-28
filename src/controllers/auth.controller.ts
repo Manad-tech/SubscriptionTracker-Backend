@@ -6,7 +6,7 @@ import User from "../models/user.model.js";
 export const register = async (req: Request, res: Response) => {
   try{
 
-    const { name, email, password } = req.body;
+    const { name, email, password , role} = req.body;
     
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -24,6 +24,7 @@ export const register = async (req: Request, res: Response) => {
       name,
       email,
       password: hashedPassword,
+      role: role || 'User',
     });
     
     return res.status(201).json({
@@ -67,14 +68,19 @@ export const login = async (req: Request , res: Response) => {
     }
 
     const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SERCRET as string,
+      { userId: user._id.toString() },
+      process.env.JWT_SECRET as string,
       { expiresIn: '7d'}
     );
 
     return res.status(200).json({
       message: 'Login Successful',
       token,
+      user: {
+        id: user._id,
+        role: user.role,
+        email: user.email
+      }
     })
   } catch (error: any) {
     return res.status(500).json({
