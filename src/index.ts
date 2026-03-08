@@ -1,12 +1,14 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import subscriptionRoutes from './routes/subscription.routes.js'
 import userRoutes from './routes/user.routes.js'
 import authRoutes from "./routes/auth.routes.js";
+import "./jobs/renewalReminder.job.js";
 
-dotenv.config();
 
 const app = express();
 
