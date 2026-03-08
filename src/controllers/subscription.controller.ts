@@ -4,9 +4,12 @@ import mongoose from "mongoose";
 
 export const createSubscription = async (req: Request, res: Response) => {
   try {
+    console.log("BODY:", req.body);
+    
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
+
 
     const userId = req.user._id;
 
