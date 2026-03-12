@@ -1,35 +1,27 @@
+import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import User from "../models/user.model.js";
-import { Request, Response, NextFunction } from "express";
 
-export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
+interface JwtPayload {
+  userId: string;
+}
+
+export const authenticate = async (
+  req: Request & { user?: any },
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const header = req.headers.authorization;
+    const authHeader = req.headers.authorization;
 
-    if (!header || !header.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Unauthorized" });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "No token provided" });
     }
 
-    const parts = header.split(" ");
-
-    if (parts.length !== 2) {
-      return res.status(401).json({ message: "Invalid token format" });
-    }
-
-    const token = parts[1];
-
+    const token = authHeader.split(" ")[1];
     const secret = process.env.JWT_SECRET;
 
-    if (!secret) {
-      throw new Error("JWT_SECRET not defined");
-    }
-
     const decoded = jwt.verify(token, secret as string);
-    console.log("Decoded:", decoded);
-
-    if (!decoded.userId || typeof decoded.userId !== "string") {
-      return res.status(401).json({ message: "Invalid token payload" });
-    }
 
     const user = await User.findById(decoded.userId).select("-password");
 

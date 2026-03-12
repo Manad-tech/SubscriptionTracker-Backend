@@ -1,15 +1,13 @@
 import { Request, Response } from "express";
 import Subscription from "../models/subscription.model.js";
-import mongoose from "mongoose";
 
 export const createSubscription = async (req: Request, res: Response) => {
   try {
     console.log("BODY:", req.body);
-    
+
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
 
     const userId = req.user._id;
 
@@ -30,6 +28,7 @@ export const createSubscription = async (req: Request, res: Response) => {
       category,
       renewalDate,
       isShared,
+      reminderSent: false,
     });
 
     return res.status(201).json(newSubscription);
@@ -89,10 +88,6 @@ export const updateSubscription = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    if (!id) {
-      return res.status(400).json({ message: "UserId is required" });
-    }
-
     const updatedSubscription = await Subscription.findByIdAndUpdate(
       id,
       req.body,
@@ -105,11 +100,15 @@ export const updateSubscription = async (req: Request, res: Response) => {
       });
     }
 
+    // Reset reminder when subscription changes
+    updatedSubscription.reminderSent = false;
+
+    await updatedSubscription.save();
+
     return res.status(200).json(updatedSubscription);
   } catch (error: any) {
     return res.status(500).json({
       message: "Server Error",
-      error: error.message,
     });
   }
 };
@@ -147,7 +146,7 @@ export const readUsersSubscription = async (req: Request, res: Response) => {
 
     const usersSubscription = await Subscription.find({ userId });
 
-    if (!usersSubscription) {
+    if (usersSubscription.length === 0) {
       return res.status(404).json({
         message: "UsersSubscription not Found",
       });
@@ -203,9 +202,7 @@ export const getTotalSpending = async (req: Request, res: Response) => {
     }
 
     const matchStage =
-      req.user.role === "Admin"
-        ? {}
-        : { userId: req.user._id };
+      req.user.role === "Admin" ? {} : { userId: req.user._id };
 
     const result = await Subscription.aggregate([
       { $match: matchStage },
@@ -229,21 +226,23 @@ export const getTotalSpending = async (req: Request, res: Response) => {
 };
 
 export const getUpcomingRenewals = async (req: Request, res: Response) => {
+
+  console.log("Category trend route hit");
   try {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     const today = new Date();
-    const next7Days = new Date();
-    next7Days.setDate(today.getDate() + 30);
+    const next30Days = new Date();
+    next30Days.setDate(today.getDate() + 30);
 
     const matchStage =
       req.user.role === "Admin"
-        ? { renewalDate: { $gte: today, $lte: next7Days } }
+        ? { renewalDate: { $gte: today, $lte: next30Days } }
         : {
             userId: req.user._id,
-            renewalDate: { $gte: today, $lte: next7Days },
+            renewalDate: { $gte: today, $lte: next30Days },
           };
 
     const renewals = await Subscription.find(matchStage).sort({
@@ -256,5 +255,113 @@ export const getUpcomingRenewals = async (req: Request, res: Response) => {
       message: "Server Error",
       error: error.message,
     });
+  }
+};
+
+export const getMonthlyCategoryTrend = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const matchStage =
+      req.user.role === "Admin" ? {} : { userId: req.user._id };
+
+    const stats = await Subscription.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: {
+            month: { $month: "$renewalDate" },
+            category: "$category",
+          },
+          total: { $sum: "$amount" },
+        },
+      },
+      {
+        $project: {
+          month: "$_id.month",
+          category: "$_id.category",
+          total: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { month: 1 } },
+    ]);
+
+    res.status(200).json(stats);
+  } catch (error: any) {
+    res.status(500).json({
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};
+
+export const getCategorySpending = async (req: Request, res: Response) => {
+  try {
+
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const filter =
+      req.user.role === "Admin" ? {} : { userId: req.user._id };
+
+    const result = await Subscription.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: "$category",
+          total: { $sum: "$amount" }
+        }
+      }
+    ]);
+
+    res.status(200).json(result);
+
+  } catch (error: any) {
+
+    res.status(500).json({
+      message: "Server Error",
+      error: error.message
+    });
+
+  }
+};
+
+export const getMonthlyCategoryTrends = async (req: Request, res: Response) => {
+  try {
+
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const filter =
+      req.user.role === "Admin" ? {} : { userId: req.user._id };
+
+    const result = await Subscription.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: {
+            month: { $month: "$renewalDate" },
+            category: "$category"
+          },
+          total: { $sum: "$amount" }
+        }
+      },
+      { $sort: { "_id.month": 1 } }
+    ]);
+
+    res.status(200).json(result);
+
+  } catch (error: any) {
+
+    res.status(500).json({
+      message: "Server Error",
+      error: error.message
+    });
+
   }
 };

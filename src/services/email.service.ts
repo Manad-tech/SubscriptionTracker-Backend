@@ -1,23 +1,20 @@
-import dotenv from "dotenv";
-dotenv.config();
 import nodemailer from "nodemailer";
 
-console.log("EMAIL_USER:", process.env.EMAIL_USER);
-console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
+export const sendRenewalEmail = async (email, name, amount, renewalDate) => {
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
 
-export const sendEmail = async (to: string, subject: string, text: string) => {
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
-    to,
-    subject,
-    text,
+    to: email,
+    subject: "Subscription Renewal Reminder",
+    text: `Your ${name} subscription of ₹${amount} renews on ${renewalDate}`
   });
+
 };

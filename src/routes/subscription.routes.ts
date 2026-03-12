@@ -1,5 +1,4 @@
 import { authenticate } from "../middleware/auth.middleware.js";
-import { authorizeRoles } from "../middleware/role.middleware.js";
 import { Router } from "express";
 import {
   createSubscription,
@@ -11,11 +10,16 @@ import {
   getCategoryStats,
   getTotalSpending,
   getUpcomingRenewals,
+  getCategorySpending,
+  getMonthlyCategoryTrends,
 } from "../controllers/subscription.controller.js";
+import { adminMiddleware } from "../middleware/adminMiddleware.js";
+
+import { getMonthlyCategoryTrend } from "../controllers/subscription.controller.js";
 
 const router = Router();
 
-router.get('/subscriptions/stats/category', authenticate , getCategoryStats)
+router.get("/subscriptions/stats/category", authenticate, getCategoryStats);
 router.get("/subscriptions/stats/total", authenticate, getTotalSpending);
 router.get("/subscriptions/upcoming", authenticate, getUpcomingRenewals);
 router.post("/subscriptions", authenticate, createSubscription);
@@ -23,5 +27,18 @@ router.get("/subscriptions/:id", authenticate, readSubscription);
 router.get("/subscriptions", authenticate, readAllSubscriptions);
 router.patch("/subscriptions/:id", authenticate, updateSubscription);
 router.delete("/subscriptions/:id", authenticate, deleteSubscription);
+router.get("/subscriptions/user/:userId",authenticate,adminMiddleware,readUsersSubscription);
+
+router.get("/subscriptions/stats/category-trend",authenticate, getMonthlyCategoryTrend);
+router.get(
+  "/subscriptions/stats/category-spending",
+  authenticate,
+  getCategorySpending,
+);
+router.get(
+  "/subscriptions/stats/category-trends",
+  authenticate,
+  getMonthlyCategoryTrends
+);
 
 export default router;
