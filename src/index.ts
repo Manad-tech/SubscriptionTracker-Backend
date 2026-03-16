@@ -17,6 +17,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("Subscription Tracker API is running");
+});
 app.use('/api', subscriptionRoutes)
 app.use('/api', userRoutes)
 app.use("/api/auth", authRoutes);
