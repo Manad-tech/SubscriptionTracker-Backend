@@ -19,7 +19,7 @@ export const markNotificationRead = async (req, res) => {
   try {
 
     const notification = await Notification.findByIdAndUpdate(
-      req.params.id,
+      {_id: req.params.id, user: req.user.id},
       { read: true },
       { new: true }
     );
@@ -28,5 +28,20 @@ export const markNotificationRead = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ message: "Failed to update notification" });
+  }
+};
+
+export const getUnreadCount = async (req, res) => {
+  try {
+
+    const count = await Notification.countDocuments({
+      user: req.user.id,
+      read: false
+    });
+
+    res.json({ unreadCount: count });
+
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch unread count" });
   }
 };

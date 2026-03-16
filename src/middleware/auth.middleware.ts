@@ -2,14 +2,14 @@ import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import User from "../models/user.model.js";
 
-interface JwtPayload {
+interface AuthPayload {
   userId: string;
 }
 
 export const authenticate = async (
-  req: Request & { user?: any },
+  req: Request & { user: Request },
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const authHeader = req.headers.authorization;
@@ -21,7 +21,11 @@ export const authenticate = async (
     const token = authHeader.split(" ")[1];
     const secret = process.env.JWT_SECRET;
 
-    const decoded = jwt.verify(token, secret as string);
+    if (!secret) {
+      throw new Error("JWT_SECRET not defined");
+    }
+
+    const decoded = jwt.verify(token, secret) as JwtPayload;
 
     const user = await User.findById(decoded.userId).select("-password");
 

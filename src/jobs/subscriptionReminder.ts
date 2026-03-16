@@ -5,26 +5,21 @@ import { sendRenewalEmail } from "../services/email.service.js";
 
 cron.schedule("0 9 * * *", async () => {
   try {
-
     console.log("Running subscription reminder job...");
 
+    const today = new Date();
     const subscriptions = await Subscription.find({
       status: "Active",
       reminderSent: false,
-    });
-
-    const today = new Date();
+      renewalDate: { $gte: today },
+    }).populate("userId");
 
     for (const sub of subscriptions) {
-
       const reminderDate = new Date(sub.renewalDate);
-
-      // subtract reminderDays from renewalDate
       reminderDate.setDate(reminderDate.getDate() - sub.reminderDays);
 
       if (today >= reminderDate) {
-
-        const user = await User.findById(sub.userId);
+        const user = sub.userId as any;
 
         if (!user) continue;
 
@@ -32,22 +27,14 @@ cron.schedule("0 9 * * *", async () => {
           user.email,
           sub.name,
           sub.amount,
-          sub.renewalDate
+          sub.renewalDate,
         );
 
-        // mark reminder as sent
         sub.reminderSent = true;
-
         await sub.save();
-
-        console.log(`Reminder sent for ${sub.name}`);
-
       }
     }
-
   } catch (error) {
-
     console.error("Reminder cron job failed:", error);
-
   }
 });

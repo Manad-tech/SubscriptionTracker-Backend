@@ -4,13 +4,11 @@ import Subscription from "../models/subscription.model.js";
 import mongoose from "mongoose";
 
 export const getUsers = async (req: Request, res: Response) => {
-  console.log("GET USERS CONTROLLER HIT");
-
   try {
     const users = await User.aggregate([
       {
         $lookup: {
-          from: "subscriptions", // must match collection name
+          from: "subscriptions",
           localField: "_id",
           foreignField: "userId",
           as: "subscriptions",
@@ -31,8 +29,6 @@ export const getUsers = async (req: Request, res: Response) => {
       },
     ]);
 
-    console.log(users);
-
     res.status(200).json(users);
   } catch (error: any) {
     res.status(500).json({
@@ -46,13 +42,19 @@ export const deleteUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findByIdAndDelete(id);
+    const user = await User.findById(id);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json({ message: "User deleted successfully" });
+    await Subscription.deleteMany({ 
+      userId: new mongoose.Types.ObjectId(id as string) 
+    });
+
+    await User.findByIdAndDelete(id);
+
+    res.json({ message: "User and subscriptions deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete user" });
   }
@@ -60,12 +62,26 @@ export const deleteUser = async (req: Request, res: Response) => {
 
 export const getAllSubscriptions = async (req: Request, res: Response) => {
   try {
-    const subscriptions = await Subscription.find().populate(
-      "userId",
-      "name email",
-    );
 
-    res.json(subscriptions);
+    const page = Number(req.query.page) || 1
+    const limit = 10
+
+    const subscriptions = await Subscription.find()
+      .populate("userId","name email")
+      .sort({createdAt: -1})
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const total = await Subscription.countDocuments()
+
+
+
+    res.json({
+      page,
+      totalPages: Math.ceil(total / limit),
+      totalSubscriptions: total,
+      subscriptions,
+    });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch subscriptions" });
   }
@@ -73,7 +89,6 @@ export const getAllSubscriptions = async (req: Request, res: Response) => {
 
 export const getAdminStats = async (req: Request, res: Response) => {
   try {
-
     const totalUsers = await User.countDocuments();
 
     const totalSubscriptions = await Subscription.countDocuments();
@@ -82,27 +97,24 @@ export const getAdminStats = async (req: Request, res: Response) => {
       {
         $group: {
           _id: null,
-          total: { $sum: "$amount" }
-        }
-      }
+          total: { $sum: "$amount" },
+        },
+      },
     ]);
 
-    const totalRevenue = revenue[0]?.total || 0;
+    const totalRevenue = revenue.length ? revenue[0].total : 0;
 
     return res.status(200).json({
       totalUsers,
       totalSubscriptions,
-      totalRevenue
+      totalRevenue,
     });
-
   } catch (error) {
-
     console.error(error);
 
     return res.status(500).json({
-      message: "Failed to fetch admin stats"
+      message: "Failed to fetch admin stats",
     });
-
   }
 };
 

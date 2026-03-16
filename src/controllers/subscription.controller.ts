@@ -3,16 +3,21 @@ import Subscription from "../models/subscription.model.js";
 
 export const createSubscription = async (req: Request, res: Response) => {
   try {
-    console.log("BODY:", req.body);
-
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     const userId = req.user._id;
 
-    const { name, amount, billingCycle, category, renewalDate, isShared } =
-      req.body;
+    const {
+      name,
+      amount,
+      currency,
+      billingCycle,
+      category,
+      renewalDate,
+      isShared,
+    } = req.body;
 
     if (!name || !amount || !billingCycle || !category || !renewalDate) {
       return res
@@ -24,6 +29,7 @@ export const createSubscription = async (req: Request, res: Response) => {
       userId,
       name,
       amount,
+      currency,
       billingCycle,
       category,
       renewalDate,
@@ -47,7 +53,9 @@ export const readAllSubscriptions = async (req: Request, res: Response) => {
     const filter: any =
       req.user.role === "Admin" ? {} : { userId: req.user?._id };
 
-    const subscriptions = await Subscription.find(filter);
+    const subscriptions = await Subscription.find(filter).sort({
+      renewalDate: 1,
+    });
 
     console.log("Role:", req.user?.role);
     console.log("Filter:", filter);
@@ -100,7 +108,6 @@ export const updateSubscription = async (req: Request, res: Response) => {
       });
     }
 
-    // Reset reminder when subscription changes
     updatedSubscription.reminderSent = false;
 
     await updatedSubscription.save();
@@ -133,235 +140,5 @@ export const deleteSubscription = async (req: Request, res: Response) => {
       message: "Server Error",
       error: error.message,
     });
-  }
-};
-
-export const readUsersSubscription = async (req: Request, res: Response) => {
-  try {
-    const { userId } = req.params;
-
-    if (!userId) {
-      return res.status(400).json({ message: "userId is required" });
-    }
-
-    const usersSubscription = await Subscription.find({ userId });
-
-    if (usersSubscription.length === 0) {
-      return res.status(404).json({
-        message: "UsersSubscription not Found",
-      });
-    }
-
-    return res.status(200).json({
-      usersSubscription,
-    });
-  } catch (error: any) {
-    return res.status(500).json({ message: "Server Error" });
-  }
-};
-
-export const getCategoryStats = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const matchStage =
-      req.user.role === "Admin" ? {} : { userId: req.user._id };
-
-    const stats = await Subscription.aggregate([
-      { $match: matchStage },
-      {
-        $group: {
-          _id: "$category",
-          total: { $sum: "$amount" },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          category: "$_id",
-          total: 1,
-        },
-      },
-    ]);
-
-    return res.status(200).json(stats);
-  } catch (error: any) {
-    return res.status(500).json({
-      message: "Server Error",
-      error: error.message,
-    });
-  }
-};
-
-export const getTotalSpending = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const matchStage =
-      req.user.role === "Admin" ? {} : { userId: req.user._id };
-
-    const result = await Subscription.aggregate([
-      { $match: matchStage },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$amount" },
-        },
-      },
-    ]);
-
-    const total = result[0]?.total || 0;
-
-    return res.status(200).json({ total });
-  } catch (error: any) {
-    return res.status(500).json({
-      message: "Server Error",
-      error: error.message,
-    });
-  }
-};
-
-export const getUpcomingRenewals = async (req: Request, res: Response) => {
-
-  console.log("Category trend route hit");
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const today = new Date();
-    const next30Days = new Date();
-    next30Days.setDate(today.getDate() + 30);
-
-    const matchStage =
-      req.user.role === "Admin"
-        ? { renewalDate: { $gte: today, $lte: next30Days } }
-        : {
-            userId: req.user._id,
-            renewalDate: { $gte: today, $lte: next30Days },
-          };
-
-    const renewals = await Subscription.find(matchStage).sort({
-      renewalDate: 1,
-    });
-
-    return res.status(200).json(renewals);
-  } catch (error: any) {
-    return res.status(500).json({
-      message: "Server Error",
-      error: error.message,
-    });
-  }
-};
-
-export const getMonthlyCategoryTrend = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const matchStage =
-      req.user.role === "Admin" ? {} : { userId: req.user._id };
-
-    const stats = await Subscription.aggregate([
-      { $match: matchStage },
-      {
-        $group: {
-          _id: {
-            month: { $month: "$renewalDate" },
-            category: "$category",
-          },
-          total: { $sum: "$amount" },
-        },
-      },
-      {
-        $project: {
-          month: "$_id.month",
-          category: "$_id.category",
-          total: 1,
-          _id: 0,
-        },
-      },
-      { $sort: { month: 1 } },
-    ]);
-
-    res.status(200).json(stats);
-  } catch (error: any) {
-    res.status(500).json({
-      message: "Server Error",
-      error: error.message,
-    });
-  }
-};
-
-export const getCategorySpending = async (req: Request, res: Response) => {
-  try {
-
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const filter =
-      req.user.role === "Admin" ? {} : { userId: req.user._id };
-
-    const result = await Subscription.aggregate([
-      { $match: filter },
-      {
-        $group: {
-          _id: "$category",
-          total: { $sum: "$amount" }
-        }
-      }
-    ]);
-
-    res.status(200).json(result);
-
-  } catch (error: any) {
-
-    res.status(500).json({
-      message: "Server Error",
-      error: error.message
-    });
-
-  }
-};
-
-export const getMonthlyCategoryTrends = async (req: Request, res: Response) => {
-  try {
-
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const filter =
-      req.user.role === "Admin" ? {} : { userId: req.user._id };
-
-    const result = await Subscription.aggregate([
-      { $match: filter },
-      {
-        $group: {
-          _id: {
-            month: { $month: "$renewalDate" },
-            category: "$category"
-          },
-          total: { $sum: "$amount" }
-        }
-      },
-      { $sort: { "_id.month": 1 } }
-    ]);
-
-    res.status(200).json(result);
-
-  } catch (error: any) {
-
-    res.status(500).json({
-      message: "Server Error",
-      error: error.message
-    });
-
   }
 };

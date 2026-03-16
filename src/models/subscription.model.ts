@@ -22,6 +22,7 @@ const subscriptionSchema = new mongoose.Schema(
 
     currency: {
       type: String,
+      enum: ['INR', 'EUR' , 'USD'],
       default: "INR",
     },
 
@@ -65,6 +66,9 @@ const subscriptionSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+subscriptionSchema.index({ renewalDate: 1 });
+subscriptionSchema.index({ reminderSent: 1 });
+subscriptionSchema.index({ status: 1 });
 
 const Subscription = mongoose.model("Subscription", subscriptionSchema);
 

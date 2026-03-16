@@ -115,3 +115,25 @@ export const deleteUser = async (req: Request , res:Response) => {
     });
   }
 }
+
+export const getUserGrowth = async (req, res) => {
+  try {
+
+    const users = await User.aggregate([
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          total: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { "_id": 1 }
+      }
+    ]);
+
+    res.json(users);
+
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch user growth" });
+  }
+};
