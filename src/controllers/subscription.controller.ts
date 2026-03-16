@@ -1,45 +1,43 @@
 import { Request, Response } from "express";
 import Subscription from "../models/subscription.model.js";
-import mongoose from "mongoose";
 
 export const createSubscription = async (req: Request, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const userId = req.user._id;
+
     const {
-      userId,
       name,
       amount,
+      currency,
       billingCycle,
       category,
       renewalDate,
       isShared,
     } = req.body;
 
-    if (
-      !userId ||
-      !name ||
-      !amount ||
-      !billingCycle ||
-      !category ||
-      !renewalDate
-    ) {
+    if (!name || !amount || !billingCycle || !category || !renewalDate) {
       return res
         .status(400)
         .json({ message: "All required fields must be provided" });
     }
 
-    const newSubscription = new Subscription({
+    const newSubscription = await Subscription.create({
       userId,
       name,
       amount,
+      currency,
       billingCycle,
       category,
       renewalDate,
       isShared,
+      reminderSent: false,
     });
 
-    const savedSubscription = await newSubscription.save();
-
-    return res.status(201).json(savedSubscription);
+    return res.status(201).json(newSubscription);
   } catch (error: any) {
     return res
       .status(500)
@@ -49,24 +47,18 @@ export const createSubscription = async (req: Request, res: Response) => {
 
 export const readAllSubscriptions = async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const filter: any =
+      req.user.role === "Admin" ? {} : { userId: req.user?._id };
 
-    
-    const mockUser = {
-      _id: new mongoose.Types.ObjectId("69a08960cd4c6103e1587d0b"),
-      role: "User",
-    };
-    
-    let filter = {};
-    
-    if (mockUser.role === "Admin") {
-      filter = {};
-    }
-    else {
-      filter = { userId: mockUser._id}
-    }
-    
-    const subscriptions = await Subscription.find(filter);
+    const subscriptions = await Subscription.find(filter).sort({
+      renewalDate: 1,
+    });
+
+    console.log("Role:", req.user?.role);
+    console.log("Filter:", filter);
 
     return res.status(200).json({
       subscriptions,
@@ -104,10 +96,6 @@ export const updateSubscription = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    if (!id) {
-      return res.status(400).json({ message: "UserId is required" });
-    }
-
     const updatedSubscription = await Subscription.findByIdAndUpdate(
       id,
       req.body,
@@ -120,11 +108,14 @@ export const updateSubscription = async (req: Request, res: Response) => {
       });
     }
 
+    updatedSubscription.reminderSent = false;
+
+    await updatedSubscription.save();
+
     return res.status(200).json(updatedSubscription);
   } catch (error: any) {
     return res.status(500).json({
       message: "Server Error",
-      error: error.message,
     });
   }
 };
@@ -149,29 +140,5 @@ export const deleteSubscription = async (req: Request, res: Response) => {
       message: "Server Error",
       error: error.message,
     });
-  }
-};
-
-export const readUsersSubscription = async (req: Request, res: Response) => {
-  try {
-    const { userId } = req.params;
-
-    if (!userId) {
-      return res.status(400).json({ message: "userId is required" });
-    }
-
-    const usersSubscription = await Subscription.find({ userId });
-
-    if (!usersSubscription) {
-      return res.status(404).json({
-        message: "UsersSubscription not Found",
-      });
-    }
-
-    return res.status(200).json({
-      usersSubscription,
-    });
-  } catch (error: any) {
-    return res.status(500).json({ message: "Server Error" });
   }
 };
