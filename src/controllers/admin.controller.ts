@@ -48,8 +48,8 @@ export const deleteUser = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    await Subscription.deleteMany({ 
-      userId: new mongoose.Types.ObjectId(id as string) 
+    await Subscription.deleteMany({
+      userId: new mongoose.Types.ObjectId(id as string),
     });
 
     await User.findByIdAndDelete(id);
@@ -62,19 +62,16 @@ export const deleteUser = async (req: Request, res: Response) => {
 
 export const getAllSubscriptions = async (req: Request, res: Response) => {
   try {
-
-    const page = Number(req.query.page) || 1
-    const limit = 10
+    const page = Number(req.query.page) || 1;
+    const limit = 10;
 
     const subscriptions = await Subscription.find()
-      .populate("userId","name email")
-      .sort({createdAt: -1})
+      .populate("userId", "name email")
+      .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 
-    const total = await Subscription.countDocuments()
-
-
+    const total = await Subscription.countDocuments();
 
     res.json({
       page,
@@ -120,10 +117,10 @@ export const getAdminStats = async (req: Request, res: Response) => {
 
 export const deleteSubscription = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid subscription id" });
+      return res.status(400).json({ message: "Invalid ID" });
     }
 
     if (!req.user) {

@@ -116,7 +116,7 @@ export const deleteUser = async (req: Request , res:Response) => {
   }
 }
 
-export const getUserGrowth = async (req, res) => {
+export const getUserGrowth = async (req: Request , res: Response) => {
   try {
 
     const users = await User.aggregate([

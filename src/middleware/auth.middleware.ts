@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import jwt, { JwtPayload } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 
 interface AuthPayload {
@@ -7,7 +7,7 @@ interface AuthPayload {
 }
 
 export const authenticate = async (
-  req: Request & { user: Request },
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
@@ -19,13 +19,13 @@ export const authenticate = async (
     }
 
     const token = authHeader.split(" ")[1];
-    const secret = process.env.JWT_SECRET;
+    const secret = process.env.JWT_SECRET!;
 
-    if (!secret) {
-      throw new Error("JWT_SECRET not defined");
+    if (!token) {
+      return res.status(401).json({ message: "Token missing" });
     }
 
-    const decoded = jwt.verify(token, secret) as JwtPayload;
+    const decoded = jwt.verify(token, secret) as unknown as AuthPayload;
 
     const user = await User.findById(decoded.userId).select("-password");
 
@@ -36,7 +36,7 @@ export const authenticate = async (
     req.user = user;
 
     next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({ message: "Invalid token" });
   }
 };

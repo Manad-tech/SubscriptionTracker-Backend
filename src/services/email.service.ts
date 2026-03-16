@@ -1,7 +1,11 @@
 import nodemailer from "nodemailer";
 
-export const sendRenewalEmail = async (email, name, amount, renewalDate) => {
-
+export const sendRenewalEmail = async (
+  email: string,
+  name: string,
+  amount: number,
+  renewalDate: Date
+) => {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {

@@ -1,10 +1,13 @@
+import { Request, Response } from "express";
 import Notification from "../models/notification.model.js";
 
-export const getNotifications = async (req, res) => {
+export const getNotifications = async (req: Request, res: Response) => {
   try {
 
+    const userId = req.user!._id;
+
     const notifications = await Notification.find({
-      user: req.user.id
+      user: userId
     }).sort({ createdAt: -1 });
 
     res.json(notifications);
@@ -15,11 +18,11 @@ export const getNotifications = async (req, res) => {
 };
 
 
-export const markNotificationRead = async (req, res) => {
+export const markNotificationRead = async (req: Request, res: Response) => {
   try {
 
     const notification = await Notification.findByIdAndUpdate(
-      {_id: req.params.id, user: req.user.id},
+      {_id: req.params.id, user: req.user?._id},
       { read: true },
       { new: true }
     );
@@ -31,11 +34,13 @@ export const markNotificationRead = async (req, res) => {
   }
 };
 
-export const getUnreadCount = async (req, res) => {
+export const getUnreadCount = async (req: Request, res: Response) => {
   try {
 
+    const userId = req.user!._id;
+
     const count = await Notification.countDocuments({
-      user: req.user.id,
+      user: userId,
       read: false
     });
 

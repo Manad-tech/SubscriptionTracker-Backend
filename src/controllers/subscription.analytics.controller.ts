@@ -4,7 +4,7 @@ import Subscription from "../models/subscription.model.js";
 export const getCategoryStats = async (req: Request, res: Response) => {
   try {
 
-    const matchStage = req.user.role === "Admin" ? {} : { userId: req.user._id };
+    const matchStage = req.user!.role === "Admin" ? {} : { userId: req.user!._id };
 
     const stats = await Subscription.aggregate([
       { $match: matchStage },
@@ -38,7 +38,7 @@ export const getTotalSpending = async (req: Request, res: Response) => {
     const user = req.user!;
 
     const matchStage =
-      req.user.role === "Admin" ? {} : { userId: req.user._id };
+      req.user?.role === "Admin" ? {} : { userId: req.user?._id };
 
     const result = await Subscription.aggregate([
       { $match: matchStage },
